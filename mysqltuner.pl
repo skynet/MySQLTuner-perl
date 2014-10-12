@@ -51,14 +51,14 @@ my %opt = (
 		"noinfo" 		=> 0,
 		"nocolor" 		=> 0,
 		"forcemem" 		=> 0,
-		"forceswap" 	=> 0,
+		"forceswap" 		=> 0,
 		"host" 			=> 0,
 		"socket" 		=> 0,
 		"port" 			=> 0,
 		"user" 			=> 0,
 		"pass"			=> 0,
 		"skipsize" 		=> 0,
-		"checkversion" 	=> 0,
+		"checkversion" 		=> 0,
 	);
 
 # Gather the options from the command line
@@ -763,7 +763,7 @@ sub mysql_stats {
 
 	# Memory usage
 	infoprint "Total buffers: ".hr_bytes($mycalc{'server_buffers'})." global + ".hr_bytes($mycalc{'per_thread_buffers'})." per thread ($myvar{'max_connections'} max threads)\n";
-	if ($mycalc{'total_possible_used_memory'} > 2*1024*1024*1024 && $arch eq 32) {
+	if ($arch && $arch == 32 && $mycalc{'total_possible_used_memory'} > 2*1024*1024*1024) {
 		badprint "Allocating > 2GB RAM on 32-bit systems can cause system instability\n";
 		badprint "Maximum possible memory usage: ".hr_bytes($mycalc{'total_possible_used_memory'})." ($mycalc{'pct_physical_memory'}% of installed RAM)\n";
 	} elsif ($mycalc{'pct_physical_memory'} > 85) {
@@ -908,16 +908,18 @@ sub mysql_stats {
 	}
 
 	# Table cache
+	my $table_cache_var = "";
 	if ($mystat{'Open_tables'} > 0) {
 		if ($mycalc{'table_cache_hit_rate'} < 20) {
 			badprint "Table cache hit rate: $mycalc{'table_cache_hit_rate'}% (".hr_num($mystat{'Open_tables'})." open / ".hr_num($mystat{'Opened_tables'})." opened)\n";
 			if (mysql_version_ge(5, 1)) {
-				push(@adjvars,"table_cache (> ".$myvar{'table_open_cache'}.")");
+				$table_cache_var = "table_open_cache";
 			} else {
-				push(@adjvars,"table_cache (> ".$myvar{'table_cache'}.")");
+				$table_cache_var = "table_cache";
 			}
-			push(@generalrec,"Increase table_cache gradually to avoid file descriptor limits");
-			push(@generalrec,"Read this before increasing table_cache over 64: http://bit.ly/1mi7c4C");
+			push(@adjvars,$table_cache_var." (> ".$myvar{'table_open_cache'}.")");
+			push(@generalrec,"Increase ".$table_cache_var." gradually to avoid file descriptor limits");
+			push(@generalrec,"Read this before increasing ".$table_cache_var." over 64: http://bit.ly/1mi7c4C");
 		} else {
 			goodprint "Table cache hit rate: $mycalc{'table_cache_hit_rate'}% (".hr_num($mystat{'Open_tables'})." open / ".hr_num($mystat{'Opened_tables'})." opened)\n";
 		}
@@ -1000,15 +1002,15 @@ sub make_recommendations {
 print	"\n >>  MySQLTuner $tunerversion - Major Hayden <major\@mhtx.net>\n".
 		" >>  Bug reports, feature requests, and downloads at http://mysqltuner.com/\n".
 		" >>  Run with '--help' for additional options and output filtering\n";
-mysql_setup;					# Gotta login first
-os_setup;						# Set up some OS variables
-get_all_vars;					# Toss variables/status into hashes
+mysql_setup;				# Gotta login first
+os_setup;				# Set up some OS variables
+get_all_vars;				# Toss variables/status into hashes
 validate_mysql_version;			# Check current MySQL version
-check_architecture;				# Suggest 64-bit upgrade
+check_architecture;			# Suggest 64-bit upgrade
 check_storage_engines;			# Show enabled storage engines
 security_recommendations;		# Display some security recommendations
-calculations;					# Calculate everything we need
-mysql_stats;					# Print the server stats
+calculations;				# Calculate everything we need
+mysql_stats;				# Print the server stats
 make_recommendations;			# Make recommendations based on stats
 # ---------------------------------------------------------------------------
 # END 'MAIN'
